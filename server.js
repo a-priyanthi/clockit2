@@ -30,6 +30,16 @@ const server = app.listen(config.PORT, () => {
   console.log(`=================================================`);
 });
 
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ [ClockIt] Port ${config.PORT} is already in use by another running instance.`);
+    console.error(`👉 Either use the already running server at http://localhost:${config.PORT}, or stop the running process before starting a new one.\n`);
+    process.exit(1);
+  } else {
+    console.error('Server error:', err);
+  }
+});
+
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');

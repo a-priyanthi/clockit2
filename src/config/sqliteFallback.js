@@ -14,6 +14,7 @@ class FallbackDatabase {
     this.storagePath = storagePath || null;
     this.tables = {};
     this.autoInc = {};
+    this.inTransaction = false;
     this.initPreBundledData();
   }
 
@@ -98,7 +99,16 @@ class FallbackDatabase {
 
     for (const stmt of statements) {
       const upper = stmt.toUpperCase();
-      if (upper === 'BEGIN' || upper === 'COMMIT' || upper === 'ROLLBACK' || upper.startsWith('BEGIN ') || upper.startsWith('PRAGMA ')) {
+      if (upper === 'BEGIN' || upper.startsWith('BEGIN ')) {
+        this.inTransaction = true;
+        continue;
+      }
+      if (upper === 'COMMIT' || upper === 'ROLLBACK' || upper.startsWith('COMMIT ') || upper.startsWith('ROLLBACK ')) {
+        this.inTransaction = false;
+        this.persist();
+        continue;
+      }
+      if (upper.startsWith('PRAGMA ')) {
         continue;
       }
 
@@ -279,13 +289,13 @@ class FallbackStatement {
             return { changes: 0, lastInsertRowid: rows[existingIdx].id || 0 };
           } else if (mode === 'REPLACE') {
             rows[existingIdx] = { ...rows[existingIdx], ...row };
-            this.db.persist();
+            if (!this.db.inTransaction) this.db.persist();
             return { changes: 1, lastInsertRowid: rows[existingIdx].id || row.id };
           }
         }
 
         rows.push(row);
-        this.db.persist();
+        if (!this.db.inTransaction) this.db.persist();
         return { changes: 1, lastInsertRowid: row.id };
       }
     }

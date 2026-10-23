@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
+    "dev": "node --watch-path=src --watch-path=public --watch-path=server.js server.js",
     "java:server": "java -cp backend-java/src/main/java edu.mit.academicclock.StandaloneJavaServer"
   },
   "engines": {

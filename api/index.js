@@ -10,10 +10,7 @@ function ensureInitialized() {
   if (!isInitialized) {
     try {
       initDatabase();
-      seedDatabase();
       seedAcademicClock();
-      seedAllMitStudentsSync();
-      seedAllMitCurriculaSync();
     } catch (err) {
       console.warn('Vercel serverless database initialization notice:', err.message);
     }
