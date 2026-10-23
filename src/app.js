@@ -49,6 +49,7 @@ const academicRoutes = require('./routes/academicRoutes');
 // Mount REST API (support all prefix variations across local & serverless cloud environments)
 app.use('/api/academic', academicRoutes);
 app.use('/academic', academicRoutes);
+app.use('/api', academicRoutes);
 app.use('/api', apiRoutes);
 app.use(apiRoutes);
 

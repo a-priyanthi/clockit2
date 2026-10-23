@@ -10,7 +10,10 @@ function ensureInitialized() {
   if (!isInitialized) {
     try {
       initDatabase();
+      seedDatabase(true);
       seedAcademicClock();
+      seedAllMitStudentsSync();
+      seedAllMitCurriculaSync();
     } catch (err) {
       console.warn('Vercel serverless database initialization notice:', err.message);
     }
@@ -19,45 +22,37 @@ function ensureInitialized() {
 }
 
 function normalizeRequestUrl(req) {
-  // If req.url already has the subpath (e.g. /api/academic/...), nothing to rewrite
+  // 1. If req.query.slug is present (from api/[...slug].js catch-all)
+  if (req.query && req.query.slug) {
+    const slug = Array.isArray(req.query.slug) ? req.query.slug.join('/') : req.query.slug;
+    const qIndex = req.url ? req.url.indexOf('?') : -1;
+    const cleanSearch = qIndex !== -1 ? req.url.slice(qIndex) : '';
+    req.url = '/api/' + String(slug).replace(/^\//, '') + cleanSearch;
+    req.originalUrl = req.url;
+    return;
+  }
+
+  // 2. If req.query.path is present (from vercel.json rewrite ?path=$1)
+  if (req.query && req.query.path) {
+    const p = Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path;
+    const qIndex = req.url ? req.url.indexOf('?') : -1;
+    const cleanSearch = qIndex !== -1 ? req.url.slice(qIndex) : '';
+    req.url = '/api/' + String(p).replace(/^\//, '') + cleanSearch;
+    req.originalUrl = req.url;
+    return;
+  }
+
+  // 3. If req.url already has the subpath (e.g. /api/academic/...), nothing to rewrite
   if (req.url && req.url.startsWith('/api/') && !req.url.startsWith('/api?') && !req.url.startsWith('/api/index.js')) {
     return;
   }
 
-  let targetPath = null;
-
-  // 1. Check if req.query has catch-all path or slug parameter
-  if (req.query && (req.query.path || req.query.slug)) {
-    const raw = req.query.path || req.query.slug;
-    targetPath = Array.isArray(raw) ? raw.join('/') : raw;
-  }
-
-  // 2. Check if rewrite added ?path=... or &path=...
-  if (!targetPath && req.url && (req.url.includes('path=') || req.url.includes('?path='))) {
-    try {
-      const u = new URL(req.url, 'http://localhost');
-      targetPath = u.searchParams.get('path');
-      u.searchParams.delete('path');
-      const cleanSearch = u.search ? u.search : '';
-      if (targetPath) {
-        req.url = '/api/' + targetPath.replace(/^\//, '') + cleanSearch;
-        req.originalUrl = req.url;
-        return;
-      }
-    } catch (e) {}
-  }
-
-  // 3. Check Vercel routing headers
-  if (!targetPath) {
-    const orig = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'] || req.headers['x-original-url'] || req.headers['x-vercel-matched-path'];
-    if (orig && orig !== '/api' && orig !== '/api/' && orig !== '/api/index.js' && orig.startsWith('/api/')) {
-      targetPath = orig.replace(/^\/api\//, '');
-    }
-  }
-
-  if (targetPath) {
-    const cleanSearch = req.url && req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    req.url = '/api/' + targetPath.replace(/^\//, '') + cleanSearch;
+  // 4. Check Vercel routing headers
+  const orig = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'] || req.headers['x-original-url'] || req.headers['x-vercel-matched-path'];
+  if (orig && orig.startsWith('/api/') && orig !== '/api' && orig !== '/api/' && orig !== '/api/index.js') {
+    const qIndex = req.url ? req.url.indexOf('?') : -1;
+    const cleanSearch = (qIndex !== -1 && !orig.includes('?')) ? req.url.slice(qIndex) : '';
+    req.url = orig + cleanSearch;
     req.originalUrl = req.url;
   }
 }
